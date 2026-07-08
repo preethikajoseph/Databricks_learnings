@@ -1,0 +1,1609 @@
+
+# By Knwoing Transformation , Analytics , Extraction , Loading 
+
+## DATA ENGINEERS / ETL DEVELOPER / DATA ANALYST  / DATA CURATION DEVELOPER
+##**1. Data Munging** - (Cleanup) Process of transforming and mapping data from Raw form into Tidy(usable) format with the intent of making it more appropriate and valuable for a variety of downstream purposes such for further Transformation/Enrichment, Egress/Outbound, analytics, Datascience/AI application & Reporting
+## Passive Data Munging  - Data discovery / EDA 
+
+## Active Data munging  
+
+1. structuring -> schema evolution / merging  
+2. validation , cleansing , scrubbing 
+3. De duplication , standaradization 
+1. visually / manually - EDA 
+
+- file type 
+- delimiter , header , col names and dattype 
+
+2. programatically  - EDA (without modifying)
+cust_raw_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified",header=False,sep=",").toDF("custid","fname","lname","age","prof")
+
+cust_raw_df.show(2)
+# view the schema 
+print("Schema of cust ")
+cust_raw_df.printSchema()
+
+# all coulumn names in the dataframe
+print("Column names of cust ")
+col_names=cust_raw_df.columns  # list[str]
+
+print(col_names)
+
+
+# get col name and datatype 
+
+col_name_type=cust_raw_df.dtypes   # list[(col_name,dtype)]
+# [('custid', 'string'), ('fname', 'string'), ('lname', 'string'), ('age', 'string'), ('prof', 'string')]
+
+print(col_name_type)
+
+# need columns which is folliwing string
+for i in col_name_type:
+  if i[1]=="string":
+      print(i[0])
+
+# get the schema 
+
+cust_schema=cust_raw_df.schema
+
+
+print(cust_schema)
+
+
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs",schema=cust_schema)
+
+cust_df.printSchema()
+
+cust_df.show(1)
+col_names=[('custid', 'int'), ('fname', 'string'), ('lname', 'string'), ('age', 'int'), ('prof', 'string')]
+
+
+for i in col_names:
+    if i[1]=='string':
+        print(i[0])
+
+
+
+# important 
+# whther given DF has duplicates 
+
+# get the total count of the DF
+
+
+print(cust_raw_df.count())   # action 
+
+# row level / record level  unique count 
+
+print(cust_raw_df.distinct().count())  # de duplication on record level 
+
+
+# record level de duplication using DropDuplicates
+print(cust_raw_df.dropDuplicates().count())
+
+
+cust_raw_df.filter("custid='4000001'").show(5)
+cust_raw_df.dropDuplicates().filter("custid='4000001'").show(5)
+cust_raw_df.distinct().filter("custid='4000001'").show(5)
+
+
+
+
+
+# column level de duplication
+# custid - level de duplication 
+
+
+# select distinct custid from table -> only unique custid 
+
+# distinct - record level de duplication
+
+# DropDuplicates without any argument- record level de duplication
+
+# DropDuplicates with argument- column  level de duplication
+
+cust_raw_df.select("custid").distinct().show()
+print(cust_raw_df.select("custid").distinct().count())
+cust_raw_df.dropDuplicates(["custid"]).show(2)
+
+print(cust_raw_df.dropDuplicates(["custid"]).count())
+
+# select distinct * from tbl 
+cust_raw_df.distinct().show(5)
+cust_raw_df.dropDuplicates().show(5)
+data=[(100,"raja",22),(101,"jai",35),(102,"anton",25),(101,"jai",36),(100,"raja",22),(101,"jaikumar",36)]
+
+df=spark.createDataFrame(data,["id","name","age"])
+
+df.show()
+
+df.distinct().show()
+
+df.dropDuplicates().show()
+
+df.dropDuplicates(subset=["id","name"]).show()
+df.select("id","name").distinct().show()
+# custid have null record or not 
+
+cust_raw_df.describe().show() # 10005
+
+cust_raw_df.summary().show() # 10005
+
+cust_raw_df.filter("custid is null").show()
+
+
+cust_schema="custid int, fname string, lname string, age int, prof string"
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs",schema=cust_schema)
+
+cust_df.printSchema()
+
+cust_df.show(1)
+
+print(cust_df.count()) 
+cust_df.describe().show() # 10005 
+cust_df.distinct().count()
+
+cust_df.filter("age>77").show()
+## Active Data munging 
+
+1. Structuring - merging / Schema Evolution 
+2. Cleansing , Scrubbing 
+3. De duplication  
+# union , union all, unionByName  -> 
+
+# union will work same number column and datatype , position
+
+# unionByName will work basd on the column names
+
+# union will not allow duplicate - sql world
+
+# spark DF -> union = union all
+# spark Df - union , unionByname - allow duplicates
+
+
+emnp_csv_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp.csv",header=True,inferSchema=True)
+
+print("Data from Source 1 CSV ")
+emnp_csv_df.show()
+
+emnp_json_df=spark.read.json("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp.json")
+print("Data from Source 2 Json ")
+emnp_json_df.show()
+
+combined_emp_df=emnp_csv_df.union(emnp_json_df.select("id","name","age"))
+
+
+print("combined Result")
+combined_emp_df.show()
+
+
+print("combined Result using union By name")
+combined_emp_df_using_unionName=emnp_csv_df.unionByName(emnp_json_df)
+
+combined_emp_df_using_unionName.show()
+
+print("combined Result like SQL union (remove deuplicate)")
+combined_emp_df.distinct().show()
+
+
+
+print("combined Result using union all")
+emnp_csv_df.unionAll(emnp_json_df.select("id","name","age")).show()
+
+
+
+
+emnp_csv_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp.csv",header=True,inferSchema=True)
+
+print("Data from Source 1 CSV ")
+emnp_csv_df.show()
+
+emnp_json_df=spark.read.json("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp.json")
+print("Data from Source 2 Json ")
+emnp_json_df.show()
+
+combined_emp_df=emnp_csv_df.union(emnp_json_df.select("id","name","age"))
+
+
+print("combined Result")
+combined_emp_df.show()
+
+
+print("combined Result using union By name")
+combined_emp_df_using_unionName=emnp_csv_df.unionByName(emnp_json_df)
+
+combined_emp_df_using_unionName.show()
+
+emnp_csv_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp.csv",header=True,inferSchema=True)
+
+print("Data from Source 1 CSV ")
+emnp_csv_df.show()
+
+emnp_json_df=spark.read.json("/Volumes/izwe48catalog/we48db/staging/BB2/union/union_emp2.json")
+print("Data from Source 2 Json ")
+emnp_json_df.show()
+
+
+combined_emp_df=emnp_csv_df.union(emnp_json_df)
+
+emnp_json_df.union(emnp_csv_df).show()
+
+
+print("combined Result")
+combined_emp_df.show()
+
+
+combined_emp_df=emnp_csv_df.unionByName(emnp_json_df,allowMissingColumns=True)
+
+
+print("combined Result using union by name")
+combined_emp_df.show()
+
+data1=[(1,"James",43,2025),(2,"Michael",3,2023),(3,"Robert",24,2022),(4,"Maria",45,2021),(5,"Jeff",30,2020)]
+data2=[(1,"James",43,"IT"),(2,"Michael",33,"Artist"),(6,"Robert",24,"IT"),(7,"Maria",45,"IT"),(8,"Jeff",30,"IT")]
+df1=spark.createDataFrame(data1,["id","name","age","year"])
+df2=spark.createDataFrame(data2,["id","name","age","prof"])
+
+
+# df.union(df2).union(df3)
+
+#df1.union(df2).show()
+df1.unionByName(df2,allowMissingColumns=True).show()
+# cleansing 
+
+# reject stretegy ->
+
+# error_rec -> table -> source 
+
+schema_str="custid int, fname string, lname string, age int, prof string,error_rec string"
+'''
+StructType([StructField('custid', IntegerType(), True), StructField('fname', StringType(), True), StructField('lname', StringType(), True), StructField('age', IntegerType(), True), StructField('prof', StringType(), True), StructField('error_rec', StringType(), True)])
+'''
+schema_type=cust_raw_df.schema
+
+cust_raw_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified",header=False,sep=",",schema=schema_type,mode="PERMISSIVE",columnNameOfCorruptRecord="error_rec")
+
+
+
+cust_raw_df.show()
+
+# only valid record  - 10000 
+valid_rec_df=cust_raw_df.where("error_rec is null")
+
+valid_rec_df.show()
+
+# getting the count of valid record 
+
+print(len(valid_rec_df.collect()))
+
+
+corrupted_df=cust_raw_df.where("error_rec is not null")
+
+print("error_count" ,corrupted_df.count())
+corrupted_df.show()
+
+corrupted_df.write.mode("overwrite").json("/Volumes/izwe48catalog/we48db/staging/error_out")
+
+valid_rec_df.write.json("/Volumes/izwe48catalog/we48db/staging/BB2/cust_valid")
+
+# serverless cache is not working , let do the same with managed compute 
+
+cust_raw_df.show(20,False)
+
+# null handling 
+# dropmalformed -> removed the corrupted record 
+
+# custid -> key column , it should not have null , if it null remnove that record 
+
+
+
+schema_str="custid int, fname string, lname string, age int, prof string"
+
+
+cust_raw_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified",header=False,sep=",",schema=schema_str,mode="dropmalformed")
+
+cust_raw_df.show(10)
+
+not_null_cutid=cust_raw_df.na.drop(subset=["custid"])
+
+not_null_cutid=cust_raw_df.na.drop(subset=cust_raw_df.columns,how="all")
+
+
+
+not_null_cutid.show(10)
+
+print(cust_raw_df.count())
+print(not_null_cutid.count())
+
+
+
+# na functions -> not applicabale - null
+# drop- remove 
+# df.na.drop(subset,how,threshold)
+# default 
+# how = any ( all, any ) -> all -> and , any -> or
+# subset= all columns -> list of columns to consider for null handling
+
+#  emp_df.dropna()= empdf.na.drop()
+
+schem_str="eid int,ename string ,age int"
+emp_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/na_demo.csv",schema=schem_str,header=True,sep=",")
+
+emp_df.show()
+
+
+# if all columns null remove that record 
+
+
+not_null_df=emp_df.na.drop(subset=["eid","ename","age"],how="all")
+
+not_null_df.show()
+
+not_null_df=emp_df.na.drop(subset=emp_df.columns,how="all")
+
+not_null_df.show()
+
+# if any one columns null remove that record 
+
+not_null_df=emp_df.na.drop(subset=emp_df.columns,how="any")
+
+not_null_df.show()
+
+
+
+# dropna -> drop the null value 
+
+# dropna(subset=["eid","ename"]) -> drop the null value in eid and ename column 
+
+# dropna()
+
+emp_df.na.drop(subset=["eid","age","ename"],how="all")
+
+
+emp_df.dropna(subset=["eid","age","ename"],how="any")
+# fillna -> fill the null value with some value 
+
+# na.fill -> fill the null value with some value 
+
+# nvl(col,default)
+# na.fill(value,subset)
+
+# na.fill("N/A") -> applied to all string columns -> replacing null with "N/A"
+# na.fill(0) -> applied to all numeric columns -> replacing null with 0
+
+emp_df.show()
+
+emp_df.na.fill("N|A").na.fill(0,subset=["age"]).show()
+
+
+# rejection -> source publishing in diff format -> reject the record -> error table
+#  allow everything (permissive ) + columnNameOfCorruptRecord - > reject the record to errot table file 
+# ignore the error recorod process with remimaning record (dropmalformed)
+# fail if u have any error record (failfast)
+
+# directly apply filter on erro_rec 
+# cache the dataframe the appy all count / filter on the error_rec column (server less free edition cache disbling)
+schema_str="custid int, fname string, lname string, age int, prof string,error_rec string"
+
+
+cust_raw_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified",header=False,sep=",",schema=schema_str,mode="permissive",columnNameOfCorruptRecord="error_rec")
+
+cust_raw_df.filter("error_rec is not null").show(100,False) 
+
+cust_raw_df.filter("error_rec is not null").count()
+print(len(cust_raw_df.filter("error_rec is not null").collect()))
+
+lst_erro_rec=cust_raw_df.filter("error_rec is not null").collect()
+print(lst_erro_rec)
+
+# cust_raw_df.cache()
+# collect retun the result in the from list 
+## Null handling
+
+### na functions 
+
+1. drop 
+2. fill
+3. replace 
+
+### syntax  : 
+
+df.na.drop or df.dropna  --> three arguments 
+
+1. how  - default any
+2. subset  - defualt all cols 
+3. thresh - none
+
+schema_str="custid int, fname string, lname string, age int, prof string"
+
+
+cust_raw_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified",header=False,sep=",",schema=schema_str)
+
+cust_raw_df.show(5) # 10005
+
+
+# remove the record if any columns are null
+
+not_null_df=cust_raw_df.na.drop()
+not_null_df=cust_raw_df.na.drop(how="any",subset=cust_raw_df.columns)
+
+not_null_df.show(5)
+not_null_df.count() # 9911
+
+# remove the record if all columns are null
+not_all_null_df=cust_raw_df.na.drop(how="all")
+not_all_null_df.show(5)
+not_all_null_df.count()
+
+# remove the record if any key  columns are null
+not_key_any_null_df=cust_raw_df.na.drop(how="any",subset=["custid","age"])  # drop  custid or age is null
+not_key_any_null_df.show(5)
+not_key_any_null_df.count()
+# remove the record if all key  columns are null
+
+not_key_all_null_df=cust_raw_df.na.drop(how="all",subset=["custid","age"])  # drop  custid and age is null
+not_key_all_null_df.show(5)
+not_key_all_null_df.count()
+
+
+
+ 
+
+
+
+
+
+# threshold -> how many not null colume required to keep the record
+schem_str="eid int,ename string ,age int"
+emp_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/na_demo.csv",schema=schem_str,header=True,sep=",")
+
+emp_df.show()
+
+
+emp_df.na.drop() # remove if any one column null
+emp_df.na.drop(thresh=2).show()
+cust_raw_df.na.drop(thresh=2,subset=["custid","age","fname"]).show()
+## scrbbing (fill)
+## SQL ->  NVL , colaesce , case when 
+
+
+
+
+
+
+
+# na.fill -> df 
+not_null_df=cust_raw_df.na.fill(0).na.fill("unknown")
+
+not_null_df.show()
+
+
+not_null_df=cust_raw_df.na.fill(0).na.fill("unknown",subset=["prof","lname","custid"])
+
+not_null_df.show()
+# na.replace 
+
+
+cust_raw_df.show(10)
+
+
+cust_raw_df.na.replace("Actor","Flim Actor").show(15)
+cust_raw_df.na.replace("Actor","Flim Actor",subset=["prof"]).show(15)
+
+cust_raw_df.na.replace({"Actor":"Flim Actor","Pilot":"Air Pilot"}).show(15)
+
+# NA
+
+cust_raw_df.dropna() 
+cust_raw_df.na.drop()
+
+
+cust_raw_df.fillna(0) 
+cust_raw_df.na.fill(0)
+
+# Standadization - de duplication , replacement 
+#####Standardization - 
+Making the data more standard by adding/removing/reordering columns as per the expected standard, unifying into expected format, converting the type as expected etc.,
+## standrdization 1 - column enrichment (add column)
+from pyspark.sql.functions import lit ,col,current_date,lower
+# cust - custid ,fname,lname,age,prof 
+# source - APAC , load_dt-> current date 
+#  SQl select -> select *,'APAC' as source  from tbl
+# spark DSL -> withColumn , select
+# source , load_dt , data_dt , created_by, btch_id, batch_num - audit columns 
+
+
+
+cust_raw_df.show(5)
+
+# withcolumn (new_col_name , value)
+# value -> col 
+# lit -> hardcoded value 
+# col -> existing column 
+# built in function -> fn()
+
+# withColumn(existing_col,value)-> overwrite exsitng col with new  value
+
+# select custid,fname,lname,age,prof , prof as new_prof from tbl
+cust_raw_df.withColumn("newprof",col("prof")).show()
+
+
+
+standard_cust_df1=cust_raw_df.withColumn("source",lit("APAC"))
+
+standard_cust_df1.show(2)
+
+standard_cust_df2=standard_cust_df1.withColumn("load_dt",current_date())
+
+standard_cust_df2.show(5)
+
+
+## standrdization 2 - column enrichment  , uniformality 
+# total count - df - 
+cust_raw_df.count()
+
+#  profession wise count 
+# select prof,count(*) from tbl group by prof
+cust_raw_df.groupBy("prof").count().show()
+
+schema_str="custid int,fname string,lname string,age int,prof string"
+cust_sample_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/cust_prof.csv",schema=schema_str)
+
+cust_sample_df.groupBy("prof").count().show()
+
+# select custid,fname,lname,age,lower(prof) as prof from tbl 
+
+standard_cust_df3 = cust_sample_df.withColumn("prof",lower(col("prof")))
+
+standard_cust_df3.show()
+
+standard_cust_df3.groupBy("prof").count().show()
+
+
+
+standard_cust_df3 = standard_cust_df2.withColumn("prof",lower(col("prof")))
+
+standard_cust_df3.show()
+
+standard_cust_df3.groupBy("prof").count().show()
+
+
+## standrdization 3 - Type 
+cust_raw_df1=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified").toDF("custid","fname","lname","age","prof")
+cust_raw_df1.show(5)
+
+
+standard_cust_df1=cust_raw_df1.withColumn("source",lit("APC")).withColumn("load_dt",current_date()).withColumn("prof",lower(col("prof")))
+
+standard_cust_df1.show()
+standard_cust_df1.printSchema()
+
+
+# age -> convert age into int - type convertion 
+
+# SQL : cast(age as int) as age 
+
+# filter if age is not in number remove the record
+
+# regular expression to filter this case  - rlike
+
+# standard_cust_df1.filter("age not rlike '^[0-9]+$'").show()
+
+standard_cust_df2=standard_cust_df1.filter("age rlike '^[0-9]+$'")
+
+standard_cust_df3=standard_cust_df2.withColumn("age",col("age").cast("int"))
+standard_cust_df3.show()
+standard_cust_df3.printSchema()
+
+
+## adding a column using select 
+from pyspark.sql.functions import lit ,col,current_date,lower
+cust_raw_df1=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/custsmodified").toDF("custid","fname","lname","age","prof")
+cust_raw_df1.show(5)
+
+# select all columns from DF
+cust_raw_df1.select("*").show()
+
+cust_raw_df1.select("custid","fname","lname","age","prof").show()
+
+standrd_df1=cust_raw_df1.select("custid","fname","lname","age","prof",lit("APAC").alias("source"))
+
+standrd_df2=standrd_df1.select("custid","fname","lname","age","prof","source",current_date().alias("load_dt"))
+
+
+standrd_df2.show()
+
+# adding a new column with select
+
+#).show()
+
+# adding a new column with sleect 
+
+
+### usecase : 
+we recivied data from multiple sources (regions) we have to load data into our storage 
+
+1. csv with header 
+2. file name : empdata_region_datadt.csv (empdata_NAM_20260620.csv)
+3. cid,fname,lname,age,prof
+
+output :
+
+cid,fullname,age,prof,load_dt,data_dt,source,created_by
+
+mappings :
+
+- cid->cid
+- fullname -> fname+lname
+- age->age
+- prof ->prof
+- load_dt -> current date
+- data_dt -> take from the file name
+- source -> take from the file name
+- created by -> current user 
+
+
+%fs head /Volumes/izwe48catalog/we48db/staging/BB2/usecase_file_csv/empdata_APAC_20260618.csv
+%fs head /Volumes/izwe48catalog/we48db/staging/BB2/usecase_file_csv/empdata_NAM_20260618.csv
+### built in function refernce -> 
+
+https://spark.apache.org/docs/latest/api/sql/
+
+https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/functions.html
+from pyspark.sql.functions import lit ,col,input_file_name,concat,current_date,split
+
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/usecase_file_csv",header=True,inferSchema=True)
+
+
+cust_df.show()
+cust_df.count()
+
+# how to take the file name 
+# function available to take the file name - input_file_name() -> return a column with filepath 
+
+# cust_df.select("*",input_file_name()).show(5)
+cust_df.select("*",col("_metadata.file_path")).show(5,False)
+
+cust_df.select("*",col("_metadata.file_name")).show(15,False)
+cust_df.select("*",col("_metadata")).printSchema()
+
+
+
+
+# withColumn  + drop 
+cust_enriched_withColumn_df1=cust_df.withColumn("full_name",concat(col("fname"),lit(" "),col("lname"))).withColumn("load_dt",current_date()).withColumn("file_name",split(col("_metadata.file_name"),"\\.")[0]).withColumn("created_by",lit("izuser")).drop("fname","lname")
+
+cust_enriched_withColumn_df2=cust_enriched_withColumn_df1.withColumn("source",split(col("file_name"),"_")[1]).withColumn("data_dt",split(col("file_name"),"_")[2]).drop("file_name")
+
+cust_enriched_withColumn_df3=cust_enriched_withColumn_df2.select("custid","full_name","age","profession","source","load_dt","data_dt","created_by")
+
+cust_enriched_withColumn_df3.write.mode("overwrite").saveAsTable("izwe48catalog.we48db.tbl_cust_detail")
+
+%sql
+
+select * from izwe48catalog.we48db.tbl_cust_detail
+standrdization 4 - Naming
+
+
+source : cid -> custeomer_id
+
+fname - first_name
+# sql - using alias 
+
+# withColumnRenamed  
+# select
+# withcolumn + drop 
+
+standrd_df2.show(5)
+
+standrd_df3=standrd_df2.withColumnRenamed("prof","Profession")
+standrd_df4=standrd_df3.withColumnRenamed("fname","full_name").withColumnRenamed("lname","last_name")
+standrd_df4.show(5)
+
+standrd_df2.withColumn("Profession",col("prof")).drop("prof").show()
+
+# droping a column from DF
+
+# using drop function 
+# select only required column
+
+## Stndardization 5 - Nameing , reordring
+stndrd_df4=standrd_df2.withColumn("Profession",col("prof")).withColumn("first_name",col("fname")).withColumn("last_name",col("lname"))
+
+stndrd_df4.show(5)
+
+stndrd_df5=stndrd_df4.drop("fname","lname","prof")
+stndrd_df5.show(5)
+
+# reordering 
+
+stndrd_df6=stndrd_df5.select("custid","first_name","last_name","age","Profession","source","load_dt")
+stndrd_df6.show(5)
+
+
+
+
+## select vs selectExpr
+stndrd_df6.show(5)
+
+stndrd_df6.select("custid","first_name","last_name").show(5)
+stndrd_df6.selectExpr("custid","first_name","last_name").show(5)
+
+# change custid to customer_id
+
+# sql -> select custid as customer_id from tbl
+
+# expr - expression- sql expression 
+
+stndrd_df6.select(col("custid").alias("customer_id"),"first_name","last_name").show(5)
+stndrd_df6.selectExpr("custid as customer_id","first_name","last_name").show(5)
+
+
+stndrd_df6.selectExpr("custid as customer_id","concat(first_name,' ',last_name) as full_name").show(5)
+
+stndrd_df6.selectExpr("custid as customer_id","concat(first_name,' ',last_name) as full_name").show(5)
+
+
+
+## withColumn vs withColumns 
+# above spark 3.3 
+from pyspark.sql.functions import lit ,col,input_file_name,concat,current_date,split
+
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/BB2/usecase_file_csv",header=True,inferSchema=True)
+
+
+cust_df.show()
+
+cust_df.withColumns({"full_name":concat("fname",lit(' '),"lname"),"dt":current_date()}).show()
+##3. Data Customization & Processing - Application of Tailored Business specific Rules <br>
+
+
+
+udf - user defined functions 
+
+
+# creating a function - def , lambda
+from pyspark.sql.functions import udf,upper
+# 1. create a python function using def or lambda 
+
+def iz_upper(str_value):
+    return str_value.upper()+"--" + str_value.lower()
+
+# 2. convert python function into idf using udf() function 
+# udf takes two arg 
+# 1. function 
+#  2. return type , default -> stringType
+udf_upper=udf(iz_upper)
+#udf_upper=udf(iz_upper,StringType())
+
+iz_upper("test")
+
+cust_df.show()
+
+cust_df.withColumn("new_prof",udf_upper(col("profession"))).show()
+
+cust_df.withColumn("new_prof",upper(col("profession"))).show()
+from pyspark.sql.types import IntegerType
+fn_get_double=lambda x:x*x
+
+fn_get_double(5)
+
+udf_get_double=udf(fn_get_double,IntegerType())
+
+df=spark.range(10)  # datafrmw of 10 rows 
+
+df.select("id",udf_get_double(col("id")).alias("multiples")).show()
+
+df.select("id",udf_get_double(col("id")).alias("multiples")).printSchema()
+
+spark.range(10,100,10).show()
+num=range(10)
+
+list(num)
+
+## complex function age category  using udf 
+## complex function age category  using case when  
+## complex function age category  using case when in DSL 
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs",header=False,sep=",",inferSchema=True).toDF("custid","fname","lname","age","prof")
+
+cust_df.show(2)
+# write a python function get the age category based on age
+# age < 18 -> minor
+# age >=18 and age < 45 -> major
+# age >=45 and age < 60 -> mid age
+# age >=60 -> senior
+
+from pyspark.sql.types import IntegerType,StringType
+from pyspark.sql.functions import udf,when
+def get_age_category(age):
+    if age < 18:
+        return "minor"
+    elif age >=18 and age < 45:
+        return "major"
+    elif age >=45 and age < 60:
+        return "mid age"
+    else:
+        return "senior"
+    
+print(get_age_category(11))
+print(get_age_category(45))
+print(get_age_category(65))
+    
+udf_age_cat=udf(get_age_category,StringType())
+
+cust_df2=cust_df.withColumn("age_cat",udf_age_cat(col("age")))
+
+cust_df2.show(15)
+
+# case when using sql expression 
+
+
+cust_df3=cust_df.selectExpr("*","case when age < 18 then 'minor' when age >=18 and age < 45 then 'major' when age >=45 and age < 60 then 'mid age' else 'senior' end as age_cat")
+
+cust_df3.show(15)
+
+# case when using DSL 
+
+# when(condition,value).otherwise(value) => case when condition then value else value end 
+# when(condition,value).when(condition2,value2).otherwise(value)
+
+cust_df3=cust_df.select("*",when(col("age") <18 ,"minor").when((col("age") >=18)&(col("age") <45),"major").when(col("age") <60,"mid age").otherwise("senior").alias("age_cat"))
+
+cust_df3.show()
+
+
+# when((col("age") >18)&(col("age") <45),"major")
+
+def get_age_category(age):
+    if age < 18:
+        return "minor"
+    elif age < 45:
+        return "major"
+    elif age >=45 and age < 60:
+        return "mid age"
+    else:
+        return "senior"
+    
+
+from pyspark.sql.functions import expr
+
+
+num=11
+
+if num %2==0:
+    print("even")
+else:
+    print("odd")
+
+
+df=spark.range(10)
+
+df2=df.withColumn("even_odd",when(col("id")%2==0,"even").otherwise("odd"))
+
+df.select("id",expr("case when id%2=0 then 'even' else 'odd' end as even_odd")).show()
+
+df.selectExpr("id","case when id%2=0 then 'even' else 'odd' end as even_odd").show()
+
+df2.show()
+
+
+df2=df.withColumn("even_odd",expr("case when id%2=0 then 'even' else 'odd' end"))
+
+df2.show()
+# select -> dsl function 
+# selectExpr -> dsl , sql expression
+# expr is the dsl function which will take sql expression 
+
+# select(expr())->selectExpr  
+# python lambda function
+fn_get_upper=lambda a:a.upper()
+
+# test the function
+
+fn_get_upper("python spark")
+
+# use this fucntion in my pyspark 
+
+from pyspark.sql.functions import udf,lit,col
+
+# udf will take python function and optinally return type as arguments 
+
+udf_upper=udf(fn_get_upper)
+
+df= spark.range(10).withColumn("user",lit("iz_user"))
+
+# select *,upper(user) from tbl
+
+df.select("*",udf_upper(col("user")).alias("new_user")).show()
+
+
+
+
+# group by and Aggregation - Analytics 
+
+### we will group the record based on the grouping column then we will perform agg
+
+in SQL - group by + agg 
+select category,count(1) from tbl group by category 
+
+-- count
+
+-- min
+
+-- max
+
+-- avg 
+
+-- sum
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs",header=False,sep=",",inferSchema=True).toDF("custid","fname","lname","age","prof")
+
+cust_df.show(5)
+# total number of records in cust
+
+# df.count - action return - int
+# df.groupBy().count()- transformation -> retrun DF
+
+print(cust_df.count())  # returning int result
+
+# total no of records on each prof 
+# prof wise count
+# select prof,count(1) from tbl group by prof
+cust_prof_count_df=cust_df.groupBy("prof").count()
+
+cust_prof_count_df.show()
+
+cust_prof_count_df.count()  # distinct prof count 
+
+# Actor -196
+cust_df.filter("prof='Actor'").count()
+
+# age wise count
+
+cust_age_count_df=cust_df.groupBy("age").count()
+
+cust_age_count_df.show()
+
+# prof , age wise count
+
+cust_prof_age_count_df=cust_df.groupBy("prof","age").count()  # datafrme - transformation
+
+cust_prof_age_count_df.show()
+
+# cust level min and maximum age 
+from pyspark.sql.functions import min,max,count,avg
+
+cust_df.select(min("age"),max("age")).show()
+
+# prof wise minimum age 
+
+cust_prof_age_min_df=cust_df.groupBy("prof").min("age")
+
+cust_prof_age_min_df.show(50)
+
+# prof wise , min age , max age ,tot_rec
+
+# select prof,min(age),max(age),count(1) from tbl group by prof 
+
+cust_prof_agg_df=cust_df.na.fill("unknown",subset=["prof"]).groupBy("prof").agg(count("*").alias("tot_rec"),min("age").alias("min_age"),max("age").alias("max_age"),avg("age").alias("avg_age"))
+cust_prof_agg_df.show(20,False)
+
+
+# order by 
+cust_prof_agg_df.orderBy("tot_rec").show()
+
+cust_prof_agg_df.orderBy("tot_rec",ascending=False).show()
+
+
+# having clause - filter on group by / finlter on the aggregated res
+
+# prof count ,min,max  prof  which has more than 200
+
+cust_prof_agg_df.filter("tot_rec>200").show()
+
+# select prof,min(age),max(age),count(1) from tbl group by prof having count(1)>200
+
+
+
+## Action - final result  - trigger the spark execution
+1. count - int 
+2. show - display / print
+3. collect - list
+4. write - none - writing the data into destination
+5. take - list- 
+
+# Join 
+
+### - combining the data from mutiple tables 
+
+### join vs union  
+
+### join adding a columns - horizontally - wider
+
+### union adding rows - vertically - taller
+
+1. inner
+2. left
+3. right
+4. full 
+5. cross
+6. left semi
+7. left anti 
+8. self 
+
+
+# spark internal - processiing - performance  - discuss in interview prep
+
+# broadcast join 
+# shuffle join
+# sort merge join 
+
+# AQE 
+
+
+%fs head /Volumes/izwe48catalog/we48db/staging/joindata/c_customer.csv
+%fs head /Volumes/izwe48catalog/we48db/staging/joindata/c_txns.csv
+
+# join syntax 
+
+# df1.join(df2,on=condition,how="left|inner|rght...")
+# default join (how) -> inner
+
+# left join
+
+## all records from left table with match from right table
+## if no match then null in right table columns
+
+customer_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/joindata/c_customer.csv",sep="|",inferSchema=True,header=True)
+
+trans_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/joindata/c_txns.csv",sep="|",inferSchema=True,header=True)
+
+customer_df.show()
+
+trans_df.show()
+
+
+# left join 
+# need all transaction along with matching customer details 
+
+# sql -> join using cid 
+
+# case - 1 join column name is same 
+trns_cust_join_df=trans_df.join(customer_df,"cid","left")
+
+trns_cust_join_df=trans_df.join(customer_df,on="cid",how="left")
+
+trns_cust_join_df.show()
+
+
+# case -2  - join using condition
+
+# columns -> col('col')
+# lit('')
+# df.colname- col
+# select * from tbl a join tbl b on a.cid=b.cid
+trns_cust_join_df=trans_df.join(customer_df,trans_df.cid==customer_df.cid,how="left")
+
+trns_cust_join_df.show()
+
+# case 3 - join with diff column name
+
+cust_2_df=customer_df.withColumnRenamed("cid","customer_id")
+
+cust_2_df.show()
+
+trans_df.show()
+
+
+cust_trans_df=trans_df.join(cust_2_df,trans_df.cid==cust_2_df.customer_id,"left")
+cust_trans_df.show()
+
+# case 4 - df alias
+
+# we are setting the table alias for the df , wriring join condition using sql syntax
+# select all col from trans and cname from customer
+
+# select * from tbl1 a join tbl2 b on a.id=b.id
+
+from pyspark.sql.functions import expr,col
+cust_trans_df=trans_df.alias("a").join(cust_2_df.alias("b"),expr("a.cid=b.customer_id"),"left").select("a.*",col("b.cname"))
+cust_trans_df.show()
+
+## right join
+## all records from rigth table with match from left table
+## if no match then null in left table columns
+
+
+trns_cust_join_df=trans_df.join(customer_df,on="cid",how="right")
+
+trns_cust_join_df.show()
+# inner join
+# only matching records from both tables 
+
+trns_cust_join_df=trans_df.join(customer_df,on="cid",how="inner")
+
+trns_cust_join_df.show()
+
+
+trns_cust_join_df=trans_df.join(customer_df,on="cid")
+
+trns_cust_join_df.show()
+trns_cust_join_df=trans_df.join(customer_df,on="cid",how="full")
+
+trns_cust_join_df.show()
+## what happens if we have duplicate in join key 
+
+## what happens if we have NULL in join key 
+emp_data=[(100,"a1",25),(101,"a2",16),(102,"a3",35),(103,"a4",45),(104,"a5",25),(105,"a6",22),(None,"jeeva",25)]
+
+city_data=[(100,"chennai"),(105,"hyd"),(113,"delhi"),(125,"chennai"),(None,"blr")]
+
+emp_df=spark.createDataFrame(emp_data,['id','name','age'])
+city_df=spark.createDataFrame(city_data,['id','city'])
+
+emp_df.show()
+city_df.show()
+
+# NULL Scnerio 
+
+# inner 
+print("inner join result ")
+emp_df.join(city_df,on="id",how="inner").show()
+
+# emp_df.join(city_df,on="id",how="left_anti").show()
+
+# left join
+
+print("left join result ")
+emp_df.join(city_df,on="id",how="left").show()
+
+
+# we will not use regularly , on need basis 
+# Null safe condition eqNullSafe
+emp_df.join(city_df,emp_df.id.eqNullSafe(city_df.id),how="inner").show()
+
+# duplicate 
+# cross join 
+
+emp_data=[(100,"a1",25),(101,"a2",16),(102,"a3",35),(103,"a4",45),(104,"a5",25),(105,"a6",22),(105,"abc",22),(None,"jeeva",25)]
+
+city_data=[(100,"chennai"),(105,"hyd"),(113,"delhi"),(125,"chennai"),(100,"blr"),(None,"test"),(None,"NJ")]
+
+emp_df=spark.createDataFrame(emp_data,['id','name','age'])
+city_df=spark.createDataFrame(city_data,['id','city'])
+
+emp_df.show()
+city_df.show()
+
+# inner 
+
+emp_df.join(city_df,on="id",how="inner").show()
+
+emp_df.join(city_df,emp_df.id.eqNullSafe(city_df.id),how="inner").show()
+
+from pyspark.sql.functions import lit
+
+# table A with m records 
+# table b with n records 
+# cross join : m * n records 
+
+df=spark.range(5).withColumn("name1",lit("data1")) 
+
+df2=spark.range(100,103).withColumn("name2",lit("data2"))
+
+
+
+df.show() # 5 
+
+df2.show() #  3
+
+df.join(df2).show()  # 5 *3 = 15
+
+df.crossJoin(df2).show()  # 5 *3 = 15
+
+## left semi - similar to exists 
+
+Based on the condition , it will return matched records from only left side table 
+
+
+
+customer and transaction 
+
+need a customer list , who mad purchase in the last 3 months 
+
+customer_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/joindata/c_customer.csv",sep="|",inferSchema=True,header=True)
+
+trans_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/joindata/c_txns.csv",sep="|",inferSchema=True,header=True)
+
+customer_df.show()
+
+trans_df.show()
+# inner 
+
+customer_df.join(trans_df,"cid","inner").show()
+
+# customer who did transaction 
+
+customer_df.join(trans_df,"cid","leftsemi").show()
+
+## Left Anti join - similar to not exists 
+
+based on the condition un matched recrod from left side 
+
+
+need a customer list , who didnt made any purchases last 6 moths 
+customer_df.join(trans_df,"cid","leftanti").show()
+## sequence number generation 
+
+### how to genrate seq number ...(sk- surrogte key )
+
+
+if source is sending key -> natural key 
+
+if we generate somthing on the same data -> sk 
+# gnerating seq number built in function  we have 
+from pyspark.sql.functions import monotonically_increasing_id
+
+customer_df.show()
+
+cust_sk_df=customer_df.withColumn("cust_sk",monotonically_increasing_id())
+cust_sk_df.show()
+
+# if data is in same partition ,you will seq number as 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+# if we have data in more number partition , you will unique number , jumbed value 
+
+customer_df.repartition(2).withColumn("cust_sk",monotonically_increasing_id()).show()
+from pyspark.sql.functions import monotonically_increasing_id
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs").toDF("custid","fname","lname","age","prof")
+
+# generate sk - seq 
+
+cust_df.select(monotonically_increasing_id().alias("cust_sk"),"*").show()
+
+
+# Windowing 
+
+### window - set of related rows  / grouped records 
+
+simliar to group by , diffrence is group by collapse the records 
+
+
+types of windwoing function 
+
+1. Ranking - row_number , rank , dense_rank ...
+
+2. Value / Analytical - lead , lag , first , last 
+
+3. aggregate - sum , count, min, max , avg ..
+# window - group 
+# window two things we can mention  - combination of partition and order by 
+# partition by - group by - grouping  column
+# order by - within the window how you want to order 
+
+data =[ ('Lisa', 'Sales', 10000, 35),
+          ('Evan', 'Sales', 32000, 38),
+          ('Fred', 'Engineering', 21000, 28),
+          ('Alex', 'Sales', 30000, 33),
+          ('Tom', 'Engineering', 23000, 33),
+          ('Jane', 'Marketing', 29000, 28),
+          ('Jeff', 'Marketing', 35000, 38),
+          ('Paul', 'Engineering', 29000, 23),
+          ('Chloe', 'Engineering', 23000, 25)]
+
+df = spark.createDataFrame(data, ['name', 'dept', 'salary', 'age'])
+#df.show()
+
+display(df)
+# ranking function 
+
+# syntax 
+
+# row_number().over(Window.partitionBy("column").orderBy("column"))
+# rank().over(Window.partitionBy("column").orderBy("column"))
+# dense_rank().over(Window.partitionBy("column").orderBy("column"))
+
+from pyspark.sql.functions import *
+
+from pyspark.sql.window import Window
+
+w_spec=Window.partitionBy("dept").orderBy("salary")
+
+
+
+df.withColumn("r_num",row_number().over(w_spec)).withColumn("rank",rank().over(w_spec)).withColumn("d_rank",dense_rank().over(w_spec)).show()
+
+
+
+
+
+
+
+# ordering with sal asc and age asc
+df.withColumn("rank",rank().over(Window.partitionBy("dept").orderBy("salary","age"))).withColumn("d_rnk",dense_rank().over(Window.partitionBy("dept").orderBy("salary","age"))).show()
+# Global Rank 
+
+# row_number() -> seq number across table we can use 
+
+df.withColumn("rw_num",row_number().over(Window.orderBy(desc("salary")))).show()
+# Top N analyses 
+
+# each department wise second highest salary second maximum sal on each department 
+# dense_rank 
+
+
+df2=df.withColumn("rnk",dense_rank().over(Window.partitionBy("dept").orderBy(desc("salary"))))
+
+df2.filter("rnk=2").show()
+
+
+# deduplication - remove duplicate
+
+
+# if cust_id repeat consider its a duplicate 
+# deduplication based age , take the latest age record 
+
+data =[(100,"raja",25),(101,"jaya",24),(102,"abc",25),(100,"raja",33)]
+
+df_emp=spark.createDataFrame(data,["cust_id","name","age"])
+
+df_emp.show()
+# group by having ->  identify duplicate - bring the custid which has duplicate 
+# remove duplicate - distinct / dropDuplicate  / row_number 
+
+# distinct - we can use to remove row level duplicate 
+
+# dropDuplicate - subset(id)
+
+# row_number 
+
+de_dup_df=df_emp.withColumn("rnk",row_number().over(Window.partitionBy("cust_id").orderBy(desc("age"))))
+
+de_dup_df.show()
+
+de_dup_df.filter("rnk=1").drop("rnk").show()
+
+
+df.show()
+#izwe48catalog.we48db.tbl_emp_salary
+
+df.write.mode("overwrite").saveAsTable("izwe48catalog.we48db.tbl_emp_salary")
+%sql
+
+-- row_number() over(partition by col order by col) as new_col
+
+select * from izwe48catalog.we48db.tbl_emp_salary;
+
+
+select *,row_number() over(partition by dept order by salary desc) as row_num
+,rank() over(partition by dept order by salary desc) as rnk
+,dense_rank() over(partition by dept order by salary desc) as d_rnk
+ from izwe48catalog.we48db.tbl_emp_salary;
+
+
+
+ -- top n analys 
+ -- second highest sal on each department 
+ -- inline query 
+
+select  name, dept,salary ,age from 
+(
+select *,dense_rank() over(partition by dept order by salary desc) as d_rnk
+ from izwe48catalog.we48db.tbl_emp_salary
+) as tbl where d_rnk=2;
+
+
+
+
+
+## window + value or analytical 
+
+lead -- next value in the window 
+
+lag  - prvious value in the window 
+
+
+first value  - 
+
+last value 
+%fs head /Volumes/izwe48catalog/we48db/staging/txns_2025.txt
+sch_str="txnid long,txndt string,custid long,amt float,cat string,prod string,city string,state string,spendby string"
+txn_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/txns_2025.txt",schema=sch_str)
+txn_df.show(5)
+
+txn_df.count() # 95904
+
+txn_df.distinct().count() # 95904
+
+txn_df.select("txnid").distinct().count() # 95884  # txnid having duplicate 
+
+txn_df.describe().show()
+
+txn_df.printSchema()
+
+# date convertion on txndate 
+# to_date 
+
+# to_date("dt_str_vale","curr_format")-> date 
+
+txn_df1=txn_df.withColumn("txndt",to_date(col("txndt"),"MM-dd-yyyy"))
+
+txn_df1.show(5)
+
+cust_df=spark.read.csv("/Volumes/izwe48catalog/we48db/staging/custs_header",header=True,inferSchema=True)
+cust_df.show(5)
+
+# custid ,fname  , prof , txndate, amt 
+
+cust_txn_df=txn_df1.join(cust_df,"custid")
+
+cust_txn_df.select("custid","fname","profession","txndt","amt").show(5)
+# customer sale pattern analyse 
+
+w_spec= Window.partitionBy("custid").orderBy("txndt")
+
+# lag 
+# previous value 
+# syntax: lag(col,offset,default) -> required is col 
+
+# lead 
+# next value 
+# syntax: lead(col,offset,default) -> required is col
+
+cust_txn_sale_df=cust_txn_df.withColumn("prev_amt",lag("amt",2,0).over(w_spec)).withColumn("next_amt",lead("amt",2,0).over(w_spec)).withColumn("first_pur",first("amt").over(w_spec))
+
+
+cust_sel_df=cust_txn_sale_df.select("custid","fname","txndt","amt","prev_amt","next_amt","first_pur")
+
+cust_sel_df.filter("custid=4000001").show()
+
+
+
+
+
+cust_txn_sale_df=cust_txn_df.withColumn("prev_amt",lag("amt",1,0).over(w_spec)).withColumn("next_amt",lead("amt",1,0).over(w_spec)).withColumn("first_pur",first("amt").over(w_spec))
+
+
+cust_sel_df=cust_txn_sale_df.select("custid","fname","txndt","amt","prev_amt","next_amt","first_pur")
+
+cust_sel_df.filter("custid=4000001").show()
+
+
+# comnpare current amt with previous , if it high u can give 5 * 
+# if prvs and next is lower - 1 *
+
+## window + aggreagtion 
+
+
+count
+
+sum
+
+avg 
+
+min
+
+max
+
+data =[ ('Lisa', 'Sales', 10000, 35),
+          ('Evan', 'Sales', 32000, 38),
+          ('Fred', 'Engineering', 21000, 28),
+          ('Alex', 'Sales', 30000, 33),
+          ('Tom', 'Engineering', 23000, 33),
+          ('Jane', 'Marketing', 29000, 28),
+          ('Jeff', 'Marketing', 35000, 38),
+          ('Paul', 'Engineering', 29000, 23),
+          ('Chloe', 'Engineering', 23000, 25)]
+
+df = spark.createDataFrame(data, ['name', 'dept', 'salary', 'age'])
+#df.show()
+
+display(df)
+df.groupBy("dept").agg(sum("salary"),avg("salary"),max("salary"),min("salary")).show()
+
+w_spec=Window.partitionBy("dept")
+
+
+
+sal_agg_df= df.withColumn("m_sal",min("salary").over(w_spec)).withColumn("max_sal",max("salary").over(w_spec)).withColumn("avg_sal",avg("salary").over(w_spec)).withColumn("sum_sal",sum("salary").over(w_spec))
+
+sal_agg_df.show()
+cust_txn_df.filter("custid=4000001").select("custid","fname","txndt","amt").show(10)
+
+# cumalative amt
+
+# cumulative sum / running total
+
+
+w_spec = Window.partitionBy("custid").orderBy("txndt")
+
+cust_agg_df=cust_txn_df.withColumn("cum_amt",sum("amt").over(w_spec))
+
+cust_agg_df.filter("custid=4000001").select("custid","fname","txndt","amt","cum_amt").show()
+
+%sql
+
+
+select *,sum(salary) over(partition by dept order by age ) from izwe48catalog.we48db.tbl_emp_salary;
+
+select *,sum(salary) over(partition by dept  ) from izwe48catalog.we48db.tbl_emp_salary;
+# roll up , cube , pivot 
+# muti dimensional agg 
+
+# rollup - hierachical combination of group by
+
+# group by country , city ->  
+# #                 ind, chen,?
+#                   ind , mum ?
+#                   US, NJ, ?
+
+# rollup(country,city) 
+#              country, city, ?
+#              country , ?
+#              ?
+'''
+ind, chen ?
+ind, mum ?
+ind ?
+us, nj ?
+us ?
+?
+'''
+
+''' 
+abc
+ab
+a
+''
+'''
+
+cust_txn_df.groupBy("spendby").sum("amt").show()
+
+cust_txn_df.rollup("spendby").sum("amt").show()
+
+# Jersey City ,Oakland ,San Dieg
+
+fl_df=cust_txn_df.filter("city in ('Jersey City' ,'Oakland' ,'San Diego')")
+
+fl_df.groupBy("city","spendby").sum("amt").show()
+
+display(fl_df.rollup("city","spendby").sum("amt").orderBy("city"))
+
+
+
+
+
+
+# cube - all possible cobination 
+
+
+'''
+country , city 
+country 
+city
+over all 
+
+'''
+'''
+abc
+ab
+ac
+bc
+a
+b
+c
+overall
+''
+
+
+'''
+
+
+display(fl_df.cube("state","city","spendby").sum("amt").orderBy("city"))
+
+
+# pivot 
+# rows to col 
+
+# nj cash credit 
+
+fl_df.groupBy("city","spendby").sum("amt").orderBy("city").show()
+
+fl_df.groupBy("city").pivot("spendby").sum("amt").orderBy("city").show()
